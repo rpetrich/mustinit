@@ -211,7 +211,12 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 			result.IsRequired = len(requiredFields) != 0
 		}
 	default:
-		result, _ = facts.Lookup(typeDef)
+		if newResult, ok := facts.Lookup(typeDef); ok {
+			if !result.IsRequired {
+				result.IsRequired = newResult.IsRequired
+			}
+			result.RequiredFields = newResult.RequiredFields
+		}
 	}
 	return result
 }
@@ -435,8 +440,7 @@ func findFunction(stack []ast.Node) (*ast.FuncDecl, bool) {
 
 func findAllComments(commentMaps []ast.CommentMap, stack []ast.Node) []*ast.Comment {
 	var result []*ast.Comment
-	for i := len(stack) - 1; i >= 0; i-- {
-		node := stack[i]
+	for _, node := range stack {
 		for _, commentMap := range commentMaps {
 			if comments, ok := commentMap[node]; ok {
 				if result == nil && len(comments) == 1 {
