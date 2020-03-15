@@ -663,4 +663,18 @@ var defaultRequirements = map[string]packageDefault{
 	"unsafe": packageDefault{
 		requirement: initRequirementValues | initRequirementSkip,
 	},
+	// extended packages
+	"golang.org/x/sys/unix": packageDefault{
+		requirement: initRequirementValues | initRequirementSkip,
+		types: map[string]TypeRequirements{
+			"Timespec": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Utsname": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+		},
+	},
 }
