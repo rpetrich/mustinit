@@ -553,6 +553,64 @@ var defaultRequirements = map[string]packageDefault{
 	},
 	"syscall": packageDefault{
 		requirement: initRequirementValues | initRequirementSkip,
+		types: map[string]TypeRequirements{
+			"Cmsghdr": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"FdSet": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"PtraceRegs": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Rlimit": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Rusage": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Statfs_t": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Stat_t": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Sysinfo_t": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Timeval": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Tms": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Utsname": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Ustat_t": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"Utimbuf": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+			"WaitStatus": TypeRequirements{
+				IsRequired:     false,
+				RequiredFields: nil,
+			},
+		},
 	},
 	"syscall/js": packageDefault{
 		requirement: initRequirementValues | initRequirementSkip,
