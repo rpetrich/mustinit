@@ -351,7 +351,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 								continue
 							}
 						}
-						pass.Reportf(n.Pos(), "literal fields must be specified by key since %s has required fields: %s", stringifyNode(pass.Fset, n.Type), stringifyRequiredFields(reqs.RequiredFields))
+						if !isIgnored(commentMaps, stack) {
+							pass.Reportf(n.Pos(), "literal fields must be specified by key since %s has required fields: %s", stringifyNode(pass.Fset, n.Type), stringifyRequiredFields(reqs.RequiredFields))
+						}
 						return true
 					}
 					if len(foundFields) != len(reqs.RequiredFields) {
@@ -361,7 +363,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 								missingFields[field] = struct{}{}
 							}
 						}
-						pass.Reportf(n.Pos(), "missing required fields in %s literal: %s", stringifyNode(pass.Fset, n.Type), stringifyRequiredFields(missingFields))
+						if !isIgnored(commentMaps, stack) {
+							pass.Reportf(n.Pos(), "missing required fields in %s literal: %s", stringifyNode(pass.Fset, n.Type), stringifyRequiredFields(missingFields))
+						}
 					}
 				}
 			case *ast.ValueSpec:
@@ -389,7 +393,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 								}
 							}
 						}
-						pass.Reportf(n.Pos(), "type %s requires initialization", stringifyNode(pass.Fset, n.Type))
+						if !isIgnored(commentMaps, stack) {
+							pass.Reportf(n.Pos(), "type %s requires initialization", stringifyNode(pass.Fset, n.Type))
+						}
 					}
 				}
 			case *ast.ReturnStmt:
@@ -397,7 +403,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					if fn, ok := findFunction(stack); ok && fn.Type.Results != nil && len(fn.Type.Results.List) != 0 {
 						for _, field := range fn.Type.Results.List {
 							if reqs, ok := facts.Lookup(field.Type); ok && reqs.IsRequired {
-								pass.Reportf(n.Pos(), "bare return of type %s requiring initialization", stringifyNode(pass.Fset, field.Type))
+								if !isIgnored(commentMaps, stack) {
+									pass.Reportf(n.Pos(), "bare return of type %s requiring initialization", stringifyNode(pass.Fset, field.Type))
+								}
 								return true
 							}
 						}
@@ -468,6 +476,15 @@ func findAllComments(commentMaps []ast.CommentMap, stack []ast.Node) []*ast.Comm
 		}
 	}
 	return result
+}
+
+func isIgnored(commentMaps []ast.CommentMap, stack []ast.Node) bool {
+	for _, comment := range findAllComments(commentMaps, stack) {
+		if comment.Text == "// mustinit:ignore" {
+			return true
+		}
+	}
+	return false
 }
 
 func nodeHasScope(node ast.Node) bool {
