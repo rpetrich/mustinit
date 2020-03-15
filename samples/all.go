@@ -1,6 +1,7 @@
 package samples
 
 import (
+	"encoding/json"
 	"github.com/rpetrich/mustinit"
 	"io"
 	"strconv"
@@ -53,4 +54,12 @@ func pipeWriter() io.PipeWriter {
 
 func mustInit() mustinit.TypeRequirements {
 	return mustinit.TypeRequirements{}
+}
+
+func unmarshal(b []byte) (literal, error) {
+	var result literal
+	if err := json.Unmarshal(b, &result); err != nil {
+		return result, err
+	}
+	return result, nil
 }

@@ -348,6 +348,28 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			case *ast.ValueSpec:
 				if len(n.Values) == 0 {
 					if reqs, found := facts.Lookup(n.Type); found && reqs.IsRequired {
+						if len(n.Names) == 1 {
+							if firstUseStack := findFirstUse(n.Names[0], stack); len(firstUseStack) >= 3 {
+								if unary, ok := firstUseStack[len(firstUseStack)-2].(*ast.UnaryExpr); ok && unary.Op == token.AND {
+									if call, ok := firstUseStack[len(firstUseStack)-3].(*ast.CallExpr); ok {
+										if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel != nil {
+											switch sel.Sel.Name {
+											case "Unmarshal":
+												if len(call.Args) == 2 && call.Args[1] == unary {
+													// allow <package>.Unmarshal(..., &val)
+													return true
+												}
+											case "Decode":
+												if len(call.Args) == 1 && call.Args[0] == unary {
+													// allow <decoder>.Decode(&val)
+													return true
+												}
+											}
+										}
+									}
+								}
+							}
+						}
 						pass.Reportf(n.Pos(), "value type requires initialization")
 					}
 				}
@@ -428,4 +450,59 @@ func findAllComments(commentMaps []ast.CommentMap, stack []ast.Node) []*ast.Comm
 		}
 	}
 	return result
+}
+
+func nodeHasScope(node ast.Node) bool {
+	switch node.(type) {
+	case *ast.File:
+		return true
+	case *ast.FuncType:
+		return true
+	case *ast.BlockStmt:
+		return true
+	case *ast.IfStmt:
+		return true
+	case *ast.SwitchStmt:
+		return true
+	case *ast.TypeSwitchStmt:
+		return true
+	case *ast.CaseClause:
+		return true
+	case *ast.CommClause:
+		return true
+	case *ast.ForStmt:
+		return true
+	case *ast.RangeStmt:
+		return true
+	default:
+		return false
+	}
+}
+
+func findFirstUse(ident *ast.Ident, stack []ast.Node) []ast.Node {
+	for i := len(stack) - 1; i >= 0; i-- {
+		if nodeHasScope(stack[i]) {
+			newStack := make([]ast.Node, i+1)
+			copy(newStack, stack)
+			startPos := ident.End()
+			var result []ast.Node
+			ast.Inspect(stack[i], func(n ast.Node) bool {
+				if n != nil {
+					newStack = append(newStack, n)
+					switch n := n.(type) {
+					case *ast.Ident:
+						if n.Name == ident.Name && n.Pos() > startPos && result == nil {
+							result = make([]ast.Node, len(newStack))
+							copy(result, newStack)
+						}
+					}
+				} else {
+					newStack = newStack[0 : len(newStack)-1]
+				}
+				return result == nil
+			})
+			return result
+		}
+	}
+	return nil
 }
