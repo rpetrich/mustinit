@@ -1,14 +1,5 @@
 package mustinit
 
-type initRequirement int // mustinit:true
-
-const (
-	initRequirementNone   initRequirement = 0
-	initRequirementValues                 = 1 << iota
-	initRequirementFields
-	initRequirementSkip
-)
-
 type packageDefault struct {
 	requirement initRequirement `mustinit:"true"`
 	types       map[string]TypeRequirements

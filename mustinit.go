@@ -1,6 +1,8 @@
 package mustinit
 
 import (
+	"flag"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -16,10 +18,68 @@ import (
 var Analyzer = &analysis.Analyzer{
 	Name:      "mustinit",
 	Doc:       "checks for initialization of required fields",
+	Flags:     *flag.NewFlagSet("", flag.ExitOnError),
 	Requires:  []*analysis.Analyzer{inspect.Analyzer},
 	Run:       run,
 	FactTypes: []analysis.Fact{new(PackageFact)},
 }
+
+func init() {
+	Analyzer.Flags.Var(&globalDefaultRequirement, "default-init-requirement", "default initialization requirement to apply to sources (one of: none, values, fields, all)")
+}
+
+type initRequirement int // mustinit:true
+
+const (
+	initRequirementNone   initRequirement = 0
+	initRequirementValues                 = 1 << iota
+	initRequirementFields
+	initRequirementSkip
+)
+
+func (ir *initRequirement) String() string {
+	if ir == nil {
+		return "none"
+	}
+	switch *ir {
+	case initRequirementNone:
+		return "none"
+	case initRequirementValues:
+		return "values"
+	case initRequirementFields:
+		return "fields"
+	case (initRequirementValues | initRequirementFields):
+		return "all"
+	case initRequirementSkip:
+		return "skip"
+	default:
+		return "unknown"
+	}
+}
+
+func (ir *initRequirement) Set(value string) error {
+	switch value {
+	case "none":
+		*ir = initRequirementNone
+		return nil
+	case "values":
+		*ir = initRequirementValues
+		return nil
+	case "fields":
+		*ir = initRequirementFields
+		return nil
+	case "all":
+		*ir = (initRequirementValues | initRequirementFields)
+		return nil
+	case "skip":
+		*ir = initRequirementSkip
+		return nil
+	default:
+		return fmt.Errorf("invalid value %q", value)
+	}
+}
+
+var globalDefaultRequirement initRequirement
 
 // TypeRequiremends describe whether a type and its subfields must be initialized
 type TypeRequirements struct {
@@ -55,11 +115,14 @@ type factStore struct {
 
 // newFactStore creates a fact store to perform an analysis pass
 func newFactStore(pass *analysis.Pass) factStore {
-	packageDefault := defaultRequirements[pass.Pkg.Path()]
 	requirements := map[string]TypeRequirements{}
-	if packageDefault.types != nil {
-		for k, v := range packageDefault.types {
-			requirements[k] = v
+	defaultRequirement := globalDefaultRequirement
+	if packageDefault, ok := defaultRequirements[pass.Pkg.Path()]; ok {
+		defaultRequirement = packageDefault.requirement
+		if packageDefault.types != nil {
+			for k, v := range packageDefault.types {
+				requirements[k] = v
+			}
 		}
 	}
 	return factStore{
@@ -70,7 +133,7 @@ func newFactStore(pass *analysis.Pass) factStore {
 		otherFacts:          map[string]PackageFact{},
 		packages:            map[string]*types.Package{},
 		otherFactImporter:   pass.ImportPackageFact,
-		defaultRequirement:  packageDefault.requirement,
+		defaultRequirement:  defaultRequirement,
 	}
 }
 
@@ -81,16 +144,25 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 		RequiredFields: nil,
 		IsRequired:     false,
 	}
-	if facts.defaultRequirement&initRequirementValues == initRequirementValues {
-		result.IsRequired = true
-	}
+	requirement := facts.defaultRequirement
 	for _, comment := range decl.comments {
 		switch comment.Text {
 		case "// mustinit:true":
-			result.IsRequired = true
+			requirement = initRequirementValues
 		case "// mustinit:false":
-			result.IsRequired = false
+			requirement = initRequirementNone
+		case "// mustinit:values":
+			requirement = initRequirementValues
+		case "// mustinit:fields":
+			requirement = initRequirementFields
+		case "// mustinit:all":
+			requirement = initRequirementValues | initRequirementFields
+		case "// mustinit:skip":
+			return result
 		}
+	}
+	if requirement&initRequirementValues == initRequirementValues {
+		result.IsRequired = true
 	}
 	switch typeDef := decl.typeSpec.Type.(type) {
 	case *ast.StructType:
@@ -109,7 +181,7 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 				}
 			}
 			// check if there's a default requirement that fields are required
-			if !found && facts.defaultRequirement&initRequirementFields == initRequirementFields {
+			if !found && requirement&initRequirementFields == initRequirementFields {
 				for _, name := range field.Names {
 					requiredFields[name.Name] = struct{}{}
 				}
