@@ -1,9 +1,11 @@
 package mustinit
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/printer"
 	"go/token"
 	"go/types"
 	"reflect"
@@ -349,7 +351,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 								continue
 							}
 						}
-						pass.Reportf(n.Pos(), "fields must be initialized by key when any fields are required")
+						pass.Reportf(n.Pos(), "literal fields must be specified by key since %s has required fields: %s", stringifyNode(pass.Fset, n.Type), stringifyRequiredFields(reqs.RequiredFields))
 						return true
 					}
 					if len(foundFields) != len(reqs.RequiredFields) {
@@ -359,7 +361,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 								missingFields[field] = struct{}{}
 							}
 						}
-						pass.Reportf(n.Pos(), "missing required fields in literal: %s", stringifyRequiredFields(missingFields))
+						pass.Reportf(n.Pos(), "missing required fields in %s literal: %s", stringifyNode(pass.Fset, n.Type), stringifyRequiredFields(missingFields))
 					}
 				}
 			case *ast.ValueSpec:
@@ -387,7 +389,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 								}
 							}
 						}
-						pass.Reportf(n.Pos(), "value type requires initialization")
+						pass.Reportf(n.Pos(), "type %s requires initialization", stringifyNode(pass.Fset, n.Type))
 					}
 				}
 			case *ast.ReturnStmt:
@@ -395,7 +397,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					if fn, ok := findFunction(stack); ok && fn.Type.Results != nil && len(fn.Type.Results.List) != 0 {
 						for _, field := range fn.Type.Results.List {
 							if reqs, ok := facts.Lookup(field.Type); ok && reqs.IsRequired {
-								pass.Reportf(n.Pos(), "bare return of type requiring initialization")
+								pass.Reportf(n.Pos(), "bare return of type %s requiring initialization", stringifyNode(pass.Fset, field.Type))
 								return true
 							}
 						}
@@ -521,4 +523,13 @@ func findFirstUse(ident *ast.Ident, stack []ast.Node) []ast.Node {
 		}
 	}
 	return nil
+}
+
+func stringifyNode(fset *token.FileSet, node ast.Node) string {
+	var buffer bytes.Buffer
+	if err := printer.Fprint(&buffer, fset, node); err != nil {
+		return fmt.Sprintf("%s", node)
+	} else {
+		return buffer.String()
+	}
 }
