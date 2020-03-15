@@ -167,6 +167,9 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 	switch typeDef := decl.typeSpec.Type.(type) {
 	case *ast.StructType:
 		requiredFields := map[string]struct{}{}
+		if len(typeDef.Fields.List) == 0 {
+			result.IsRequired = false
+		}
 		for _, field := range typeDef.Fields.List {
 			// check if field has a mustinit:"true" tag
 			found := false
