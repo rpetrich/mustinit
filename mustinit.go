@@ -183,10 +183,18 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 						requiredFields[name.Name] = struct{}{}
 					}
 					continue
-				} else if json, ok := tag.Lookup("json"); ok && json == "-" {
-					// ignore json:"-" since this is used to indicate fields
-					// should not be serialized and field is thus optional
-					continue
+				} else if json, ok := tag.Lookup("json"); ok {
+					if json == "-" {
+						// ignore json:"-" since this is used to indicate fields
+						// should not be serialized and field is thus optional
+						continue
+					}
+					split := strings.Split(json, ",")
+					if len(split) == 2 && split[1] == "omitempty" {
+						// ignore json:"name,omitempty" since this is used to
+						// indicate fields that may be omitted
+						continue
+					}
 				}
 			}
 			// check if there's a default requirement that fields are required
