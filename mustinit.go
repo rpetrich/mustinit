@@ -183,12 +183,16 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 						requiredFields[name.Name] = struct{}{}
 					}
 					continue
+				} else if json, ok := tag.Lookup("json"); ok && json == "-" {
+					// ignore json:"-" since this is used to indicate fields
+					// should not be serialized and field is thus optional
+					continue
 				}
 			}
 			// check if there's a default requirement that fields are required
 			if !found && requirement&initRequirementFields == initRequirementFields {
 				for _, name := range field.Names {
-					if name.Name != "_" {
+					if !strings.HasPrefix(name.Name, "_") {
 						requiredFields[name.Name] = struct{}{}
 					}
 				}
@@ -198,7 +202,7 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 			if field.Type != nil {
 				if requirements, ok := facts.Lookup(field.Type); ok && requirements.IsRequired {
 					for _, name := range field.Names {
-						if name.Name != "_" {
+						if !strings.HasPrefix(name.Name, "_") {
 							requiredFields[name.Name] = struct{}{}
 						}
 					}
