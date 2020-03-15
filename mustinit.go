@@ -183,7 +183,9 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 			// check if there's a default requirement that fields are required
 			if !found && requirement&initRequirementFields == initRequirementFields {
 				for _, name := range field.Names {
-					requiredFields[name.Name] = struct{}{}
+					if name.Name != "_" {
+						requiredFields[name.Name] = struct{}{}
+					}
 				}
 				continue
 			}
@@ -191,7 +193,9 @@ func (facts *factStore) analyzeRequirements(decl declarationSource) TypeRequirem
 			if field.Type != nil {
 				if requirements, ok := facts.Lookup(field.Type); ok && requirements.IsRequired {
 					for _, name := range field.Names {
-						requiredFields[name.Name] = struct{}{}
+						if name.Name != "_" {
+							requiredFields[name.Name] = struct{}{}
+						}
 					}
 					continue
 				}
