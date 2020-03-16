@@ -6,7 +6,7 @@ and automatically inferred from common golang patterns.
 
 ```bash
 $ go get github.com/rpetrich/mustinit/cmd/mustinit
-$ go vet -vettool=`which mustinit` ./tests
+$ go vet -vettool=`which mustinit` ./samples
 # github.com/rpetrich/mustinit/samples
 samples/all.go:19:3: bare return of type literal requiring initialization
 samples/all.go:21:9: missing required fields in literal literal: required
